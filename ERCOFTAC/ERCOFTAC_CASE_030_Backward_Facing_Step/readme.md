@@ -4,8 +4,8 @@ It includes the input files and a Jupyter notebook where the postprocessing is c
 
 Note: The reference velocity is the centerline maximum axial velocity. The inlet conditions are fully developed conditions.
 
-[alt text](plots_cp.pdf)
+![alt text](plots_cp.png)
 
-![alt text](plots_cf.pdf)
+![alt text](plots_cf.png)
 
-![alt text](plots_u_profiles.pdf)
+![alt text](plots_u_profiles.png)
