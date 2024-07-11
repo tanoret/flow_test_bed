@@ -16,7 +16,7 @@ rho = 998
 D = 0.1524
 d = 0.0783
 mu = 0.00100
-bulk_u =  '${fparse Re * mu / rho / (3 * d)}'
+bulk_u =  '${fparse Re * mu / rho / d}'
 
 
 pressure_tag = "pressure_grad"
@@ -28,34 +28,27 @@ C1_eps = 1.44
 C2_eps = 1.92
 C_mu = 0.09
 
+
 ### Initial and Boundary Conditions ###
 intensity = 0.0319
 k_init = '${fparse 1.5*(intensity * bulk_u/2)^2}'
 eps_init = '${fparse C_mu^0.75 * k_init^1.5 / d}'
 
-### Modeling parameters ###
-non_equilibrium_treatment = true
+### Modeling parameters ###ß
 bulk_wall_treatment = false
 walls = 'wall-side_to_3 top wall-side_to_2'
-walls_eps = 'wall-side_to_3'
-noeps_walls = 'wall-side_to_2 top'
-max_mixing_length = 1e10
-linearized_yplus_mu_t = false
-wall_treatment = 'eq_incremental' # Options: eq_newton, eq_incremental, eq_linearized, neq
+walls_eps = 'wall-side_to_2'
+noeps_walls = 'top wall-side_to_3'
+wall_treatment = 'eq_newton' # Options: eq_newton, eq_incremental, eq_linearized, neq
 
 
 [Functions]
     [u_fonc]
       type = PiecewiseLinear
       data_file = data_u.csv
-      scale_factor = '${fparse bulk_u}'
+      scale_factor = '${fparse 1.18*bulk_u}'
       format = columns
-    []
-    [v_fonc]
-        type = PiecewiseLinear
-        data_file = data_v.csv
-        scale_factor = '${fparse bulk_u}'
-        format = columns
+      axis = y
     []
 []
 
@@ -63,7 +56,7 @@ wall_treatment = 'eq_incremental' # Options: eq_newton, eq_incremental, eq_linea
     [pipe]
         type = CartesianMeshGenerator
         dim = 2
-        dx = '${fparse 6.0*D} ${fparse 3*D}'
+        dx = '${fparse 6*D} ${fparse 3*D}'
         dy = '${fparse 0.5*d} ${fparse 0.5*(D-d)}'
         ix = '50 25'
         iy = '4  4'
@@ -110,7 +103,7 @@ wall_treatment = 'eq_incremental' # Options: eq_newton, eq_incremental, eq_linea
     []
     coord_type = RZ
     rz_coord_axis = X
-    uniform_refine = 2
+    uniform_refine = 3
 []
 
 [Problem]
@@ -265,8 +258,7 @@ wall_treatment = 'eq_incremental' # Options: eq_newton, eq_incremental, eq_linea
         mu = ${mu}
         mu_t = 'mu_t'
         walls = ${walls}
-        non_equilibrium_treatment = ${non_equilibrium_treatment}
-        max_mixing_length = ${max_mixing_length}
+        wall_treatment = ${wall_treatment}
     []
 
     [TKED_advection]
@@ -301,8 +293,7 @@ wall_treatment = 'eq_incremental' # Options: eq_newton, eq_incremental, eq_linea
         C1_eps = ${C1_eps}
         C2_eps = ${C2_eps}
         walls = ${noeps_walls}
-        non_equilibrium_treatment = ${non_equilibrium_treatment}
-        max_mixing_length = ${max_mixing_length}
+        wall_treatment = ${wall_treatment}
     []
 []
 
@@ -317,7 +308,7 @@ wall_treatment = 'eq_incremental' # Options: eq_newton, eq_incremental, eq_linea
         type = INSFVInletVelocityBC
         boundary = 'left'
         variable = vel_r
-        functor = v_fonc
+        functor = 0
     []
 
     [inlet_TKE]
@@ -407,6 +398,10 @@ wall_treatment = 'eq_incremental' # Options: eq_newton, eq_incremental, eq_linea
         initial_condition = '${fparse rho * C_mu * ${k_init}^2 / eps_init}'
         two_term_boundary_expansion = false
     []
+    [mu_eff]
+        type = MooseVariableFVReal
+        two_term_boundary_expansion = false
+    []
 []
 
 [AuxKernels]
@@ -422,40 +417,45 @@ wall_treatment = 'eq_incremental' # Options: eq_newton, eq_incremental, eq_linea
         v = vel_r
         bulk_wall_treatment = ${bulk_wall_treatment}
         walls = ${walls}
-        linearized_yplus = ${linearized_yplus_mu_t}
-        non_equilibrium_treatment = ${non_equilibrium_treatment}
+        wall_treatment = ${wall_treatment}
         execute_on = 'NONLINEAR'
+    []
+    [compute_mu_eff]
+        type = ParsedAux
+        variable = mu_eff
+        coupled_variables = 'mu_t'
+        expression = '${mu} + mu_t'
     []
 []
 
-[Postprocessors]
-    [inlet_pressure]
-        type = SideAverageValue
-        boundary = 'left'
-        variable = 'pressure'
-        execute_on = 'FINAL'
-        outputs = 'csv'
-    []
-    [average_TKE]
-        type = ElementAverageValue
-        variable = 'TKE'
-        execute_on = 'FINAL'
-        outputs = 'csv'
-    []
-    [average_TKED]
-        type = ElementAverageValue
-        variable = 'TKED'
-        execute_on = 'FINAL'
-        outputs = 'csv'
-    []
-    [average_outlet_velocity]
-        type = SideAverageValue
-        boundary = 'right'
-        variable = 'vel_x'
-        execute_on = 'FINAL'
-        outputs = 'csv'
-    []
-[]
+# [Postprocessors]
+#     [inlet_pressure]
+#         type = SideAverageValue
+#         boundary = 'left'
+#         variable = 'pressure'
+#         execute_on = 'FINAL'
+#         outputs = 'csv'
+#     []
+#     [average_TKE]
+#         type = ElementAverageValue
+#         variable = 'TKE'
+#         execute_on = 'FINAL'
+#         outputs = 'csv'
+#     []
+#     [average_TKED]
+#         type = ElementAverageValue
+#         variable = 'TKED'
+#         execute_on = 'FINAL'
+#         outputs = 'csv'
+#     []
+#     [average_outlet_velocity]
+#         type = SideAverageValue
+#         boundary = 'right'
+#         variable = 'vel_x'
+#         execute_on = 'FINAL'
+#         outputs = 'csv'
+#     []
+# []
 
 
 
@@ -469,8 +469,8 @@ wall_treatment = 'eq_incremental' # Options: eq_newton, eq_incremental, eq_linea
     pressure_gradient_tag = ${pressure_tag}
     momentum_equation_relaxation = 0.7
     pressure_variable_relaxation = 0.3
-    turbulence_equation_relaxation = '0.3 0.3'
-    num_iterations = 2000
+    turbulence_equation_relaxation = '0.2 0.2'
+    num_iterations = 4000
     pressure_absolute_tolerance = 1e-12
     momentum_absolute_tolerance = 1e-12
     turbulence_absolute_tolerance = '1e-12 1e-12'
@@ -492,8 +492,4 @@ wall_treatment = 'eq_incremental' # Options: eq_newton, eq_incremental, eq_linea
 
 [Outputs]
     exodus = true
-    [csv]
-      type = CSV
-      execute_on = FINAL
-    []
 []
