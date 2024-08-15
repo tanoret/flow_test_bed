@@ -1,8 +1,8 @@
 ##########################################################
 # ERCOFTAC test case
-# Case Number: 013
+# Case Number: 060
 # Author: Emmanuel Gault
-# Last Update: May, 2024
+# Last Update: June, 2024
 # Turbulent model using:
 # k-epsilon model
 # Equilibrium + Newton wall treatement
@@ -10,13 +10,12 @@
 ##########################################################
 
 
-Re = 400000
+#Re = 202000
 
-rho = 998
-D = 0.1524
-d = 0.0783
-mu = 0.00100
-bulk_u =  '${fparse Re * mu / rho / d}'
+rho = 1.225
+mu = 1.79e-5
+bulk_u = 11.6
+D = 0.26
 
 
 pressure_tag = "pressure_grad"
@@ -28,86 +27,76 @@ C1_eps = 1.44
 C2_eps = 1.92
 C_mu = 0.09
 
-
 ### Initial and Boundary Conditions ###
 intensity = 0.0319
 k_init = '${fparse 1.5*(intensity * bulk_u/2)^2}'
-eps_init = '${fparse C_mu^0.75 * k_init^1.5 / d}'
+eps_init = '${fparse C_mu^0.75 * k_init^1.5 / D}'
 
-### Modeling parameters ###ß
+### Modeling parameters ###
 bulk_wall_treatment = false
-walls = 'wall-side_to_3 top wall-side_to_2'
-walls_eps = 'wall-side_to_2'
-noeps_walls = 'top wall-side_to_3'
 wall_treatment = 'eq_newton' # Options: eq_newton, eq_incremental, eq_linearized, neq
 
 
-[Functions]
-    [u_fonc]
-      type = PiecewiseLinear
-      data_file = data_u.csv
-      scale_factor = '${fparse 1.18*bulk_u}'
-      format = columns
-      axis = y
-    []
-[]
+
 
 [Mesh]
-    [pipe]
-        type = CartesianMeshGenerator
-        dim = 2
-        dx = '${fparse 6*D} ${fparse 3*D}'
-        dy = '${fparse 0.5*d} ${fparse 0.5*(D-d)}'
-        ix = '50 25'
-        iy = '4  4'
-        subdomain_id = '
-                        1 1
-                        2 1
-                    '
-    []
-    [corner_walls]
-        type = SideSetsBetweenSubdomainsGenerator
-        input = pipe
-        primary_block = '1'
-        paired_block = '2'
-        new_boundary = 'wall-side'
-    []
-    [delete_bottom]
-        type = BlockDeletionGenerator
-        input = corner_walls
-        block = '2'
+    [fmg]
+        type = FileMeshGenerator
+        file = 'mesh_ERCOFTAC_case_60_normal_with_bcs1.e'
     []
     [subdomain1]
-        input = delete_bottom
+        input = fmg
         type = SubdomainBoundingBoxGenerator
-        bottom_left = '0 ${fparse 0.5*d+0.0001} 0'
-        top_right = '1 1 0'
+        bottom_left = '0 -1 -1'
+        top_right = '0.1 1 1'
         block_id = 2
     []
     [break_boundary]
         input = subdomain1
         type = BreakBoundaryOnSubdomainGenerator
-        boundaries = 'wall-side'
+        boundaries = 'wall'
     []
     [subdomain2]
         input = break_boundary
         type = SubdomainBoundingBoxGenerator
-        bottom_left = '0 0 0'
-        top_right = '1 ${fparse 0.5*d+0.0001} 0'
+        bottom_left = '0.1 -1 -1'
+        top_right = '1 1 1'
         block_id = 3
     []
     [bb2]
         input = subdomain2
         type = BreakBoundaryOnSubdomainGenerator
-        boundaries = 'wall-side'
+        boundaries = 'wall'
     []
-    coord_type = RZ
-    rz_coord_axis = X
-    uniform_refine = 3
+    uniform_refine = 0
+[]
+
+[Functions]
+    [v_fonc]
+      type = PiecewiseLinear
+      data_file = testswirlv.csv
+      scale_factor = 53
+      format = columns
+      axis = z
+    []
+    [w_fonc]
+      type = PiecewiseLinear
+      data_file = testswirlw.csv
+      scale_factor = 53
+      format = columns
+      axis = y
+    []
+    [R_fonc]
+        type = PiecewiseLinear
+        data_file = curvR.csv
+        scale_factor = 1
+        format = columns
+        axis = x
+    []
 []
 
 [Problem]
-    nl_sys_names = 'u_system v_system pressure_system TKE_system TKED_system'
+    nl_sys_names = 'u_system v_system w_system pressure_system TKE_system TKED_system'
     previous_nl_solution_required = true
 []
 
@@ -120,7 +109,8 @@ wall_treatment = 'eq_newton' # Options: eq_newton, eq_incremental, eq_linearized
     [rc]
         type = INSFVRhieChowInterpolatorSegregated
         u = vel_x
-        v = vel_r
+        v = vel_y
+        w = vel_z
         pressure = pressure
     []
 []
@@ -130,13 +120,19 @@ wall_treatment = 'eq_newton' # Options: eq_newton, eq_incremental, eq_linearized
         type = INSFVVelocityVariable
         solver_sys = u_system
         two_term_boundary_expansion = false
-        initial_condition = 1e-6
+        initial_condition = 2
     []
-    [vel_r]
+    [vel_y]
         type = INSFVVelocityVariable
         solver_sys = v_system
         two_term_boundary_expansion = false
-        initial_condition = 1e-6
+        initial_condition = 0
+    []
+    [vel_z]
+        type = INSFVVelocityVariable
+        solver_sys = w_system
+        two_term_boundary_expansion = false
+        initial_condition = 0
     []
     [pressure]
         type = INSFVPressureVariable
@@ -160,7 +156,7 @@ wall_treatment = 'eq_newton' # Options: eq_newton, eq_incremental, eq_linearized
     [u_advection]
         type = INSFVMomentumAdvection
         variable = vel_x
-        advected_interp_method = 'average'
+        advected_interp_method = 'upwind'
         rho = ${rho}
         momentum_component = 'x'
     []
@@ -177,7 +173,8 @@ wall_treatment = 'eq_newton' # Options: eq_newton, eq_incremental, eq_linearized
         momentum_component = 'x'
         complete_expansion = true
         u = vel_x
-        v = vel_r
+        v = vel_y
+        w = vel_z
     []
     [u_pressure]
         type = INSFVMomentumPressure
@@ -189,31 +186,62 @@ wall_treatment = 'eq_newton' # Options: eq_newton, eq_incremental, eq_linearized
 
     [v_advection]
         type = INSFVMomentumAdvection
-        variable = vel_r
-        advected_interp_method = 'average'
+        variable = vel_y
+        advected_interp_method = 'upwind'
         rho = ${rho}
         momentum_component = 'y'
     []
     [v_viscosity]
         type = INSFVMomentumDiffusion
-        variable = vel_r
+        variable = vel_y
         mu = ${mu}
         momentum_component = 'y'
     []
     [v_viscosity_turbulent]
         type = INSFVMomentumDiffusion
-        variable = vel_r
+        variable = vel_y
         mu = 'mu_t'
         momentum_component = 'y'
         complete_expansion = true
         u = vel_x
-        v = vel_r
+        v = vel_y
+        w = vel_z
     []
-
     [v_pressure]
         type = INSFVMomentumPressure
-        variable = vel_r
+        variable = vel_y
         momentum_component = 'y'
+        pressure = pressure
+        extra_vector_tags = ${pressure_tag}
+    []
+
+    [w_advection]
+        type = INSFVMomentumAdvection
+        variable = vel_z
+        advected_interp_method = 'upwind'
+        rho = ${rho}
+        momentum_component = 'z'
+    []
+    [w_viscosity]
+        type = INSFVMomentumDiffusion
+        variable = vel_z
+        mu = ${mu}
+        momentum_component = 'z'
+    []
+    [w_viscosity_turbulent]
+        type = INSFVMomentumDiffusion
+        variable = vel_z
+        mu = 'mu_t'
+        momentum_component = 'z'
+        complete_expansion = true
+        u = vel_x
+        v = vel_y
+        w = vel_z
+    []
+    [w_pressure]
+        type = INSFVMomentumPressure
+        variable = vel_z
+        momentum_component = 'z'
         pressure = pressure
         extra_vector_tags = ${pressure_tag}
     []
@@ -252,12 +280,13 @@ wall_treatment = 'eq_newton' # Options: eq_newton, eq_incremental, eq_linearized
         type = INSFVTKESourceSink
         variable = TKE
         u = vel_x
-        v = vel_r
+        v = vel_y
+        w = vel_z
         epsilon = TKED
         rho = ${rho}
         mu = ${mu}
         mu_t = 'mu_t'
-        walls = ${walls}
+        walls = 'wall'
         wall_treatment = ${wall_treatment}
     []
 
@@ -266,33 +295,34 @@ wall_treatment = 'eq_newton' # Options: eq_newton, eq_incremental, eq_linearized
         variable = TKED
         advected_interp_method = 'upwind'
         rho = ${rho}
-        walls = ${walls_eps}
+        walls = 'wall_to_2'
     []
     [TKED_diffusion]
         type = INSFVTurbulentDiffusion
         variable = TKED
         coeff = ${mu}
-        walls = ${walls_eps}
+        walls = 'wall_to_2'
     []
     [TKED_diffusion_turbulent]
         type = INSFVTurbulentDiffusion
         variable = TKED
         coeff = 'mu_t'
         scaling_coef = ${sigma_eps}
-        walls = ${walls_eps}
+        walls = 'wall_to_2'
     []
     [TKED_source_sink]
         type = INSFVTKEDSourceSink
         variable = TKED
         u = vel_x
-        v = vel_r
+        v = vel_y
+        w = vel_z
         k = TKE
         rho = ${rho}
         mu = ${mu}
         mu_t = 'mu_t'
         C1_eps = ${C1_eps}
         C2_eps = ${C2_eps}
-        walls = ${noeps_walls}
+        walls = 'wall' 
         wall_treatment = ${wall_treatment}
     []
 []
@@ -300,95 +330,81 @@ wall_treatment = 'eq_newton' # Options: eq_newton, eq_incremental, eq_linearized
 [FVBCs]
     [inlet-u]
         type = INSFVInletVelocityBC
-        boundary = 'left'
+        boundary = 'inlet'
         variable = vel_x
-        functor = u_fonc
+        functor = '${fparse bulk_u}'
     []
     [inlet-v]
         type = INSFVInletVelocityBC
-        boundary = 'left'
-        variable = vel_r
-        functor = 0
+        boundary = 'inlet'
+        variable = vel_y
+        functor = v_fonc
+    []
+    [inlet-w]
+        type = INSFVInletVelocityBC
+        boundary = 'inlet'
+        variable = vel_z
+        functor = w_fonc
     []
 
     [inlet_TKE]
         type = INSFVInletIntensityTKEBC
-        boundary = 'left'
+        boundary = 'inlet'
         variable = TKE
         u = vel_x
-        v = vel_r
+        v = vel_y
+        w = vel_z
         intensity = ${intensity}
     []
     [inlet_TKED]
         type = INSFVMixingLengthTKEDBC
-        boundary = 'left'
+        boundary = 'inlet'
         variable = TKED
         k = TKE
-        characteristic_length = '${fparse d}'
+        characteristic_length = '${fparse D}'
     []
     [outlet_p]
         type = INSFVOutletPressureBC
-        boundary = 'right'
+        boundary = 'outlet'
         variable = pressure
         functor = 0
     []
     [walls-u]
         type = FVDirichletBC
-        boundary = ${walls}
+        boundary = 'wall'
         variable = vel_x
         value = 0
     []
     [walls-v]
         type = FVDirichletBC
-        boundary = ${walls}
-        variable = vel_r
+        boundary = 'wall'
+        variable = vel_y
+        value = 0
+    []
+    [walls-w]
+        type = FVDirichletBC
+        boundary = 'wall'
+        variable = vel_z
         value = 0
     []
 
     [walls_mu_t]
         type = INSFVTurbulentViscosityWallFunction
-        boundary = ${walls}
+        boundary = 'wall'
         variable = mu_t
         u = vel_x
-        v = vel_r
+        v = vel_y
+        w = vel_z
         rho = ${rho}
         mu = ${mu}
         mu_t = 'mu_t'
         k = TKE
         wall_treatment = ${wall_treatment}
-    []
-    [axis-u]
-        type = INSFVSymmetryVelocityBC
-        boundary = 'bottom'
-        variable = vel_x
-        u = vel_x
-        v = vel_r
-        mu = ${mu}
-        momentum_component = x
-    []
-    [axis-v]
-        type = INSFVSymmetryVelocityBC
-        boundary = 'bottom'
-        variable = vel_r
-        u = vel_x
-        v = vel_r
-        mu = ${mu}
-        momentum_component = y
-    []
-    [axis-p]
-        type = INSFVSymmetryPressureBC
-        boundary = 'bottom'
-        variable = pressure
-    []
-    [axis-k]
-        type = INSFVSymmetryScalarBC
-        boundary = 'bottom'
-        variable = TKE
-    []
-    [axis-eps]
-        type = INSFVSymmetryScalarBC
-        boundary = 'bottom'
-        variable = TKED
+        curv_R = R_fonc
+        x_curvature_axis = 1
+        y_curvature_axis = 0
+        z_curvature_axis = 0
+        alpha_curv = 2
     []
 []
 
@@ -414,9 +430,9 @@ wall_treatment = 'eq_newton' # Options: eq_newton, eq_incremental, eq_linearized
         mu = ${mu}
         rho = ${rho}
         u = vel_x
-        v = vel_r
+        v = vel_y
         bulk_wall_treatment = ${bulk_wall_treatment}
-        walls = ${walls}
+        walls = 'wall'
         wall_treatment = ${wall_treatment}
         execute_on = 'NONLINEAR'
     []
@@ -428,49 +444,20 @@ wall_treatment = 'eq_newton' # Options: eq_newton, eq_incremental, eq_linearized
     []
 []
 
-# [Postprocessors]
-#     [inlet_pressure]
-#         type = SideAverageValue
-#         boundary = 'left'
-#         variable = 'pressure'
-#         execute_on = 'FINAL'
-#         outputs = 'csv'
-#     []
-#     [average_TKE]
-#         type = ElementAverageValue
-#         variable = 'TKE'
-#         execute_on = 'FINAL'
-#         outputs = 'csv'
-#     []
-#     [average_TKED]
-#         type = ElementAverageValue
-#         variable = 'TKED'
-#         execute_on = 'FINAL'
-#         outputs = 'csv'
-#     []
-#     [average_outlet_velocity]
-#         type = SideAverageValue
-#         boundary = 'right'
-#         variable = 'vel_x'
-#         execute_on = 'FINAL'
-#         outputs = 'csv'
-#     []
-# []
-
 
 
 [Executioner]
-    type = SIMPLE
+    type = SIMPLENonlinearAssembly
     rhie_chow_user_object = 'rc'
-    momentum_systems = 'u_system v_system'
+    momentum_systems = 'u_system v_system w_system'
     pressure_system = 'pressure_system'
     turbulence_systems = 'TKED_system TKE_system'
 
     pressure_gradient_tag = ${pressure_tag}
-    momentum_equation_relaxation = 0.7
-    pressure_variable_relaxation = 0.3
+    momentum_equation_relaxation = 0.6
+    pressure_variable_relaxation = 0.4
     turbulence_equation_relaxation = '0.2 0.2'
-    num_iterations = 4000
+    num_iterations = 800
     pressure_absolute_tolerance = 1e-12
     momentum_absolute_tolerance = 1e-12
     turbulence_absolute_tolerance = '1e-12 1e-12'
