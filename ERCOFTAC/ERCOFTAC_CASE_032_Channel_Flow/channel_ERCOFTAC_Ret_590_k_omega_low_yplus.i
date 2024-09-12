@@ -32,11 +32,12 @@ vortex_stretching_modficiation = false
     dim = 2
     xmax = '${L}'
     ymax = '1.0'
-    nx = '2000'
+    nx = '1250'
     ny = '80'
     bias_y = 0.96
   []
 []
+
 
 [Problem]
   nl_sys_names = 'u_system v_system pressure_system TKE_system TKESD_system'
@@ -225,6 +226,7 @@ vortex_stretching_modficiation = false
     walls = ${walls}
     wall_treatment = ${wall_treatment}
     F1 = F1
+    F2 = F2
     free_shear_modification = ${free_shear_modification}
     wall_normal_unit_vectors = 'wall_cell_face_normals'
     vortex_stretching_modficiation = ${vortex_stretching_modficiation}
@@ -326,10 +328,10 @@ vortex_stretching_modficiation = false
 []
 
 [AuxVariables]
-  [wall_distance]
-    type = MooseVariableFVReal
-    initial_condition = 1.0
-  []
+  # [wall_distance]
+  #   type = MooseVariableFVReal
+  #   initial_condition = 1.0
+  # []
   [F1]
     type = MooseVariableFVReal
     initial_condition = 1.0
@@ -374,12 +376,12 @@ vortex_stretching_modficiation = false
     walls = ${walls}
     execute_on = 'NONLINEAR'
   []
-  [compute_wall_distance]
-    type = WallDistanceAux
-    variable = wall_distance
-    walls = ${walls}
-    execute_on = 'INITIAL NONLINEAR'
-  []
+  # [compute_wall_distance]
+  #   type = WallDistanceAux
+  #   variable = wall_distance
+  #   walls = 'top'
+  #   execute_on = 'INITIAL NONLINEAR'
+  # []
   [compute_F1]
     type = kOmegaSSTF1BlendingAux
     variable = F1
@@ -387,7 +389,7 @@ vortex_stretching_modficiation = false
     omega = TKESD
     rho = ${rho}
     mu = ${mu}
-    wall_distance = wall_distance
+    walls = ${walls}
     execute_on = 'NONLINEAR'
   []
   [compute_F2]
@@ -397,7 +399,7 @@ vortex_stretching_modficiation = false
     omega = TKESD
     rho = ${rho}
     mu = ${mu}
-    wall_distance = wall_distance
+    walls = ${walls}
     execute_on = 'NONLINEAR'
   []
   [compute_sigma_k]
@@ -446,8 +448,9 @@ vortex_stretching_modficiation = false
   pressure_gradient_tag = ${pressure_tag}
   momentum_equation_relaxation = 0.7
   pressure_variable_relaxation = 0.3
-  turbulence_equation_relaxation = '0.3 0.3'
-  num_iterations = 5000
+  turbulence_equation_relaxation = '0.5 0.5'
+  turbulence_field_relaxation = '0.5 0.5'
+  num_iterations = 1500
   pressure_absolute_tolerance = 1e-12
   momentum_absolute_tolerance = 1e-12
   turbulence_absolute_tolerance = '1e-12 1e-12'
@@ -469,4 +472,8 @@ vortex_stretching_modficiation = false
 
 [Outputs]
   exodus = true
+  [csv]
+    type = CSV
+    execute_on = 'final'
+  []
 []
